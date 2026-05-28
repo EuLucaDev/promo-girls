@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rei do Garimpo | App Web</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="kicker">Automação de Afiliados</p>
+        <h1>Rei do Garimpo</h1>
+      </div>
+      <div class="actions-row">
+        <button class="btn" id="btnRefresh">Atualizar</button>
+        <button class="btn" id="btnImport">Importar APIs Ativas</button>
+        <button class="btn btn-solid" id="btnPublicar">Publicar Aprovados</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <button class="tab-btn active" data-tab="pendentes">Pendentes</button>
+        <button class="tab-btn" data-tab="aprovados">Aprovados</button>
+        <button class="tab-btn" data-tab="reprovados">Reprovados</button>
+        <button class="tab-btn" data-tab="config">Configurações</button>
+      </aside>
+
+      <section class="content" id="viewOfertas">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 id="tituloAba">Pendentes</h2>
+            <div class="actions-row">
+              <button class="btn btn-solid" id="btnNovaOferta">Nova Oferta</button>
+            </div>
+          </div>
+          <div class="stats" id="stats"></div>
+          <div class="table-wrap" id="tableWrap"></div>
+        </div>
+      </section>
+
+      <section class="content hidden" id="viewConfig">
+        <div class="panel">
+          <h2>Configuração Geral</h2>
+
+          <div class="config-box">
+            <h3>Planilha e Tema</h3>
+            <div class="grid-4">
+              <label>Spreadsheet ID <input type="text" id="cfgSpreadsheetId" placeholder="1AbC..." /></label>
+              <label>Nome da planilha <input type="text" id="cfgDisplayName" placeholder="Rei do Garimpo" /></label>
+              <label>Preset tema
+                <select id="cfgThemePreset">
+                  <option value="amber">Amber</option>
+                  <option value="emerald">Emerald</option>
+                  <option value="ocean">Ocean</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <label>Enviar para todos ativos
+                <select id="cfgSendAllActive">
+                  <option value="true">Sim</option>
+                  <option value="false">Não</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid-4">
+              <label>Cor fundo app <input type="color" id="cfgColorBg" /></label>
+              <label>Cor painel <input type="color" id="cfgColorPanel" /></label>
+              <label>Cor marca <input type="color" id="cfgColorBrand" /></label>
+              <label>Cor texto <input type="color" id="cfgColorInk" /></label>
+            </div>
+          </div>
+
+          <div class="config-box">
+            <h3>Filtros globais de importação</h3>
+            <div class="grid-4">
+              <label>Preço mínimo <input type="text" id="cfgPrecoMin" placeholder="0" /></label>
+              <label>Preço máximo <input type="text" id="cfgPrecoMax" placeholder="9999" /></label>
+              <label>Keywords <input type="text" id="cfgKeywords" placeholder="fone, teclado" /></label>
+              <label>Segmentos (separado por vírgula) <input type="text" id="cfgSegmentos" placeholder="Eletrônicos,Casa" /></label>
+            </div>
+          </div>
+
+          <div class="config-box">
+            <div class="panel-head">
+              <h3>Canais de Publicação</h3>
+              <button class="btn" id="btnAddCanal">Adicionar canal</button>
+            </div>
+            <div class="table-wrap">
+              <table id="channelsTable">
+                <thead>
+                  <tr>
+                    <th>Ativo</th>
+                    <th>ID</th>
+                    <th>Tipo</th>
+                    <th>Nome</th>
+                    <th>Destino</th>
+                    <th>Config Auth JSON</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="config-box">
+            <div class="panel-head">
+              <h3>Provedores</h3>
+              <button class="btn" id="btnAddProvider">Adicionar provedor</button>
+            </div>
+            <div class="table-wrap">
+              <table id="providersTable">
+                <thead>
+                  <tr>
+                    <th>Ativo</th>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Tipo</th>
+                    <th>Endpoint</th>
+                    <th>Método</th>
+                    <th>Auth</th>
+                    <th>Token</th>
+                    <th>Token Prop</th>
+                    <th>App ID</th>
+                    <th>App ID Prop</th>
+                    <th>App Secret</th>
+                    <th>App Secret Prop</th>
+                    <th>Headers JSON</th>
+                    <th>Query/Body JSON</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="actions-row">
+            <button class="btn btn-solid" id="btnSalvarConfig">Salvar Configurações</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal hidden" id="modalOferta">
+      <div class="modal-card">
+        <div class="panel-head">
+          <h3 id="modalTitulo">Nova Oferta</h3>
+          <button class="btn" id="btnFecharModal">Fechar</button>
+        </div>
+
+        <form id="formOferta" class="form-grid">
+          <input type="hidden" id="ofRow" />
+          <input type="hidden" id="ofAba" />
+
+          <label>ID <input type="text" id="ofId" /></label>
+          <label>Origem/API <input type="text" id="ofOrigemApi" placeholder="Shopee | Amazon | Mercado Livre | Manual" /></label>
+          <label>Loja <input type="text" id="ofLoja" /></label>
+          <label>Produto <input type="text" id="ofProduto" required /></label>
+          <label>Categoria <input type="text" id="ofCategoria" /></label>
+          <label>Preço De <input type="text" id="ofPrecoDe" /></label>
+          <label>Preço Por <input type="text" id="ofPrecoPor" /></label>
+          <label>Cupom <input type="text" id="ofCupom" /></label>
+          <label>Frete <input type="text" id="ofFrete" /></label>
+          <label>Avaliação <input type="text" id="ofAvaliacao" /></label>
+          <label>Status
+            <select id="ofStatus">
+              <option value="PENDENTE">PENDENTE</option>
+              <option value="APROVADO">APROVADO</option>
+              <option value="REPROVADO">REPROVADO</option>
+            </select>
+          </label>
+          <label>Prioridade
+            <select id="ofPrioridade">
+              <option value="ALTA">ALTA</option>
+              <option value="MÉDIA">MÉDIA</option>
+              <option value="BAIXA">BAIXA</option>
+            </select>
+          </label>
+          <label class="full">Benefícios <textarea id="ofBeneficios" rows="2"></textarea></label>
+          <label class="full">Observação <textarea id="ofObservacao" rows="2"></textarea></label>
+          <label class="full">Link Original <input type="text" id="ofLinkOriginal" /></label>
+          <label class="full">Link Afiliado <input type="text" id="ofLinkAfiliado" /></label>
+          <label class="full">URL da Imagem <input type="text" id="ofImagem" /></label>
+
+          <div class="full image-preview" id="imagePreviewBox"></div>
+
+          <div class="full actions-row">
+            <button type="submit" class="btn btn-solid">Salvar Oferta</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script>
+      window.RDG_CONFIG = {
+        mode: "api",
+        apiBaseUrl: "http://localhost:8787",
+        enableLocalFallback: false
+      };
+    </script>
+    <script src="app.js"></script>
+  </body>
+</html>
