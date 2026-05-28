@@ -1,0 +1,75 @@
+name: Deploy Frontend + Apps Script
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "deploy-main"
+  cancel-in-progress: true
+
+jobs:
+  deploy-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p site
+          cp index.html styles.css app.js site/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+
+  deploy-apps-script:
+    runs-on: ubuntu-latest
+    needs: deploy-pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Configure clasp credentials
+        run: |
+          echo '${{ secrets.GAS_CLASP_JSON }}' > ~/.clasprc.json
+          cat > gas/.clasp.json <<JSON
+          {
+            "scriptId": "${{ secrets.GAS_SCRIPT_ID }}",
+            "rootDir": "."
+          }
+          JSON
+
+      - name: Push to Apps Script
+        working-directory: gas
+        run: clasp push --force
+
+      - name: Create version
+        working-directory: gas
+        run: clasp version "Auto deploy $GITHUB_SHA"
+
+      - name: Deploy web app
+        working-directory: gas
+        run: clasp deploy -d "CI deploy $GITHUB_SHA"
