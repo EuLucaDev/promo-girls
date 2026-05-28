@@ -1026,9 +1026,19 @@ function logErro_(ctx, err) {
 }
 
 function setupExemploScriptProperties() {
+  var spreadsheetId = '';
+  try {
+    var active = SpreadsheetApp.getActiveSpreadsheet();
+    if (active) spreadsheetId = active.getId();
+  } catch (_) {}
+
+  if (!spreadsheetId) {
+    spreadsheetId = 'COLE_SEU_SPREADSHEET_ID';
+  }
+
   var props = PropertiesService.getScriptProperties();
   props.setProperties({
-    RDG_SPREADSHEET_ID: SpreadsheetApp.getActiveSpreadsheet().getId(),
+    RDG_SPREADSHEET_ID: spreadsheetId,
     TELEGRAM_BOT_TOKEN: 'COLE_SEU_TOKEN_TELEGRAM',
     WHATSAPP_TOKEN: 'COLE_SEU_TOKEN_WHATSAPP',
     WHATSAPP_PHONE_NUMBER_ID: 'COLE_SEU_PHONE_NUMBER_ID'
