@@ -40,37 +40,59 @@ jobs:
   deploy-apps-script:
     runs-on: ubuntu-latest
     needs: deploy-pages
-    if: ${{ secrets.GAS_SCRIPT_ID != '' && secrets.GAS_CLASP_JSON != '' }}
+    env:
+      GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+      GAS_CLASP_JSON: ${{ secrets.GAS_CLASP_JSON }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check required secrets
+        id: precheck
+        run: |
+          if [ -n "$GAS_SCRIPT_ID" ] && [ -n "$GAS_CLASP_JSON" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip Apps Script deploy (missing secrets)
+        if: ${{ steps.precheck.outputs.ready != 'true' }}
+        run: |
+          echo "Skipping Apps Script deploy because GAS_SCRIPT_ID or GAS_CLASP_JSON is missing."
+
       - name: Setup Node
+        if: ${{ steps.precheck.outputs.ready == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install clasp
+        if: ${{ steps.precheck.outputs.ready == 'true' }}
         run: npm install -g @google/clasp
 
       - name: Configure clasp credentials
+        if: ${{ steps.precheck.outputs.ready == 'true' }}
         run: |
-          echo '${{ secrets.GAS_CLASP_JSON }}' > ~/.clasprc.json
+          echo "$GAS_CLASP_JSON" > ~/.clasprc.json
           cat > gas/.clasp.json <<JSON
           {
-            "scriptId": "${{ secrets.GAS_SCRIPT_ID }}",
+            "scriptId": "$GAS_SCRIPT_ID",
             "rootDir": "."
           }
           JSON
 
       - name: Push to Apps Script
+        if: ${{ steps.precheck.outputs.ready == 'true' }}
         working-directory: gas
         run: clasp push --force
 
       - name: Create version
+        if: ${{ steps.precheck.outputs.ready == 'true' }}
         working-directory: gas
         run: clasp version "Auto deploy $GITHUB_SHA"
 
       - name: Deploy web app
+        if: ${{ steps.precheck.outputs.ready == 'true' }}
         working-directory: gas
         run: clasp deploy -d "CI deploy $GITHUB_SHA"
