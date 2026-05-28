@@ -722,6 +722,10 @@
   }
 
   function createApiGateway_() {
+    function isAppsScriptWebAppUrl_() {
+      return API_BASE_URL.indexOf('script.google.com/macros/s/') >= 0;
+    }
+
     function resolveUrl_(path) {
       var route = String(path || '/bootstrap').replace(/^\//, '');
       if (API_BASE_URL.indexOf('/exec') >= 0 || API_BASE_URL.indexOf('/dev') >= 0) {
@@ -736,7 +740,9 @@
       var opt = options || {};
       var headers = opt.headers || {};
 
-      if (!headers['Content-Type'] && opt.body) {
+      // Avoid CORS preflight issues with Apps Script when frontend runs on GitHub Pages.
+      // For Apps Script URLs, keep request as a simple POST (no explicit JSON content-type).
+      if (!isAppsScriptWebAppUrl_() && !headers['Content-Type'] && opt.body) {
         headers['Content-Type'] = 'application/json';
       }
 
