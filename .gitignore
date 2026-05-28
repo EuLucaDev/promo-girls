@@ -1,0 +1,5 @@
+# Local clasp binding
+/gas/.clasp.json
+
+# macOS
+.DS_Store
