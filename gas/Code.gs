@@ -48,6 +48,7 @@ var HEADERS = [
 
 var PROP_CONFIG_JSON = 'RDG_CONFIG_JSON';
 var PROP_SPREADSHEET_ID = 'RDG_SPREADSHEET_ID';
+var RDG_BUILD = '2026-05-29_371f012';
 
 function doGet(e) {
   return handleRequest_(e, 'GET');
@@ -126,6 +127,7 @@ function bootstrap_() {
   return {
     ofertas: listarOfertas_(ss),
     config: config,
+    build: RDG_BUILD,
     message: 'Bootstrap concluído.'
   };
 }
@@ -314,6 +316,7 @@ function importarProviders_() {
   return {
     ofertas: listarOfertas_(ss),
     config: config,
+    build: RDG_BUILD,
     message: novos.length ? ('Importação concluída. Novos itens: ' + novos.length) : 'Nenhum item novo importado.'
   };
 }
