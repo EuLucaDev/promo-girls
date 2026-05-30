@@ -259,6 +259,22 @@ h2, h3 {
 
 .stat strong { display: block; font-size: 1.52rem; }
 .stat small { color: var(--muted); font-weight: 600; }
+.stat.stat-pendentes {
+  background: linear-gradient(140deg, #fff9d8, #fff3b0);
+  border-color: #f0df8a;
+}
+.stat.stat-aprovados {
+  background: linear-gradient(140deg, #e7f8ec, #c9efdb);
+  border-color: #a9d8bc;
+}
+.stat.stat-reprovados {
+  background: linear-gradient(140deg, #ffe8ea, #ffcfd6);
+  border-color: #f0a8b5;
+}
+.stat.stat-postados {
+  background: linear-gradient(140deg, #e7f1ff, #cfe3ff);
+  border-color: #9fbee8;
+}
 
 .stat::after {
   content: "";

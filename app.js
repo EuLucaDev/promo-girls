@@ -228,17 +228,17 @@
     }).length;
 
     byId('stats').innerHTML = [
-      cardStat('Pendentes', pendentes),
-      cardStat('Aprovados', aprovados),
-      cardStat('Reprovados', reprovados),
-      cardStat('Postados', postados)
+      cardStat('Pendentes', pendentes, 'pendentes'),
+      cardStat('Aprovados', aprovados, 'aprovados'),
+      cardStat('Reprovados', reprovados, 'reprovados'),
+      cardStat('Postados', postados, 'postados')
     ].join('');
 
     revealStagger_(byId('stats').querySelectorAll('.stat'), 80);
   }
 
-  function cardStat(label, value) {
-    return '<article class="stat"><strong>' + value + '</strong><small>' + label + '</small></article>';
+  function cardStat(label, value, kind) {
+    return '<article class="stat stat-' + esc(kind || '') + '"><strong>' + value + '</strong><small>' + label + '</small></article>';
   }
 
   function renderTabela() {
