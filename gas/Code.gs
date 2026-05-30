@@ -502,7 +502,61 @@ function importFromProvider_(provider, filtros) {
 }
 
 function importShopee_(provider, filtros) {
-  return importCustomJson_(provider, filtros, 'Shopee');
+  var endpoint = String(provider.endpoint || '').trim() || 'https://open-api.affiliate.shopee.com.br/graphql';
+  var appId = resolveSecret_(provider.appId, provider.appIdProperty || 'SHOPEE_APP_ID');
+  var appSecret = resolveSecret_(provider.appSecret, provider.appSecretProperty || 'SHOPEE_SECRET');
+
+  if (!appId || !appSecret) {
+    addLog_(getSpreadsheet_(), 'IMPORT_SHOPEE', 'Credenciais Shopee ausentes. Configure appId/appSecret ou Script Properties (SHOPEE_APP_ID/SHOPEE_SECRET).');
+    return [];
+  }
+
+  var payloadObj = buildShopeePayload_(provider.queryOrBody);
+  var payloadText = JSON.stringify(payloadObj);
+
+  var timestamp = String(Math.floor(new Date().getTime() / 1000));
+  var signature = sha256Hex_(String(appId) + timestamp + payloadText + String(appSecret));
+
+  var headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'SHA256 Credential=' + appId + ',Timestamp=' + timestamp + ',Signature=' + signature
+  };
+
+  mergeProviderHeaders_(headers, provider.headersJson);
+
+  var response = UrlFetchApp.fetch(endpoint, {
+    method: 'post',
+    muteHttpExceptions: true,
+    headers: headers,
+    contentType: 'application/json',
+    payload: payloadText
+  });
+
+  var code = response.getResponseCode();
+  if (code < 200 || code >= 300) {
+    addLog_(getSpreadsheet_(), 'IMPORT_SHOPEE', 'HTTP ' + code + ': ' + response.getContentText());
+    return [];
+  }
+
+  var json;
+  try {
+    json = JSON.parse(response.getContentText());
+  } catch (err) {
+    addLog_(getSpreadsheet_(), 'IMPORT_SHOPEE', 'Resposta JSON inválida.', String(err && err.message ? err.message : err));
+    return [];
+  }
+
+  if (json && Array.isArray(json.errors) && json.errors.length) {
+    addLog_(getSpreadsheet_(), 'IMPORT_SHOPEE', 'Shopee retornou erro GraphQL.', JSON.stringify(json.errors));
+    return [];
+  }
+
+  var nodes = extractShopeeNodes_(json);
+  var mapped = nodes.map(function (item, idx) {
+    return mapShopeeItem_(item, idx);
+  });
+
+  return applyImportFilters_(mapped, filtros || {});
 }
 
 function importAmazon_(provider, filtros) {
@@ -533,15 +587,7 @@ function importCustomJson_(provider, filtros, providerLabel) {
     if (providerAppSecret) headers['x-app-secret'] = providerAppSecret;
   }
 
-  if (provider.headersJson) {
-    try {
-      var extra = JSON.parse(provider.headersJson);
-      var keys = Object.keys(extra);
-      for (var i = 0; i < keys.length; i++) {
-        headers[keys[i]] = extra[keys[i]];
-      }
-    } catch (_) {}
-  }
+  mergeProviderHeaders_(headers, provider.headersJson);
 
   var bodyObj = null;
   if (provider.queryOrBody) {
@@ -606,7 +652,82 @@ function extractArray_(json) {
   if (json && json.data && json.data.productOfferV2 && Array.isArray(json.data.productOfferV2.nodes)) {
     return json.data.productOfferV2.nodes;
   }
+  if (json && json.data && json.data.shopOfferV2 && Array.isArray(json.data.shopOfferV2.nodes)) {
+    return json.data.shopOfferV2.nodes;
+  }
+  if (json && json.data && json.data.shopeeOfferV2 && Array.isArray(json.data.shopeeOfferV2.nodes)) {
+    return json.data.shopeeOfferV2.nodes;
+  }
   return [];
+}
+
+function extractShopeeNodes_(json) {
+  if (!json || !json.data) return [];
+  if (json.data.productOfferV2 && Array.isArray(json.data.productOfferV2.nodes)) return json.data.productOfferV2.nodes;
+  if (json.data.shopOfferV2 && Array.isArray(json.data.shopOfferV2.nodes)) return json.data.shopOfferV2.nodes;
+  if (json.data.shopeeOfferV2 && Array.isArray(json.data.shopeeOfferV2.nodes)) return json.data.shopeeOfferV2.nodes;
+  return [];
+}
+
+function buildShopeePayload_(queryOrBodyRaw) {
+  var parsed = null;
+  var raw = String(queryOrBodyRaw || '').trim();
+
+  if (raw) {
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_) {
+      parsed = null;
+    }
+  }
+
+  if (parsed && typeof parsed === 'object' && parsed.query) {
+    return parsed;
+  }
+
+  return {
+    query: '{ productOfferV2(sortType:2,page:1,limit:20){ nodes { productId itemId productName itemName shopName categoryName price priceMin priceMax originalPrice commissionRate imageUrl productLink offerLink ratingStar } pageInfo { page limit hasNextPage } } }'
+  };
+}
+
+function mapShopeeItem_(item, index) {
+  item = item || {};
+  var bannerImg = '';
+
+  if (item.bannerInfo && item.bannerInfo.banners && item.bannerInfo.banners.length) {
+    bannerImg = String(item.bannerInfo.banners[0].imageUrl || '');
+  }
+
+  var productName = String(item.productName || item.itemName || item.offerName || item.name || '').trim();
+  var offerLink = String(item.offerLink || '').trim();
+  var originalLink = String(item.productLink || item.originalLink || '').trim();
+  var precoPor = item.priceMax || item.priceMin || item.price || '';
+
+  return {
+    _uid: '',
+    id: String(item.productId || item.itemId || item.offerId || item.id || ('SHP-' + Date.now() + '-' + index)),
+    origemApi: 'Shopee',
+    loja: String(item.shopName || item.storeName || ''),
+    produto: productName || 'Oferta Shopee',
+    categoria: String(item.categoryName || item.category || ''),
+    precoDe: item.originalPrice || '',
+    precoPor: precoPor,
+    cupom: String(item.coupon || ''),
+    frete: String(item.shipping || ''),
+    avaliacao: String(item.ratingStar || ''),
+    beneficios: item.commissionRate ? ('Comissão: ' + item.commissionRate) : '',
+    observacao: '',
+    linkOriginal: originalLink,
+    linkAfiliado: offerLink || originalLink,
+    imagem: String(item.imageUrl || bannerImg || ''),
+    status: 'PENDENTE',
+    prioridade: 'MÉDIA',
+    postado: 'NÃO',
+    dataCaptura: new Date(),
+    dataPostagem: '',
+    postTelegram: '',
+    aba: ABA_PENDENTES
+  };
 }
 
 function mapGenericItem_(item, providerName, index) {
@@ -623,17 +744,17 @@ function mapGenericItem_(item, providerName, index) {
     id: String(pick(['id', 'itemId', 'item_id', 'productId']) || ('IMP-' + Date.now() + '-' + index)),
     origemApi: providerName,
     loja: String(pick(['loja', 'shop', 'shopName', 'storeName']) || ''),
-    produto: String(pick(['produto', 'name', 'title', 'itemName', 'productName']) || 'Produto sem nome'),
+    produto: String(pick(['produto', 'name', 'title', 'itemName', 'productName', 'offerName']) || 'Produto sem nome'),
     categoria: String(pick(['categoria', 'category', 'categoryName']) || ''),
     precoDe: pick(['precoDe', 'priceBefore', 'originalPrice', 'price_max']),
-    precoPor: pick(['precoPor', 'price', 'priceMin', 'offerPrice']),
+    precoPor: pick(['precoPor', 'price', 'priceMin', 'priceMax', 'offerPrice']),
     cupom: String(pick(['cupom', 'coupon']) || ''),
     frete: String(pick(['frete', 'shipping', 'shippingFee']) || ''),
     avaliacao: String(pick(['avaliacao', 'rating', 'score']) || ''),
     beneficios: String(pick(['beneficios', 'benefits']) || ''),
     observacao: String(pick(['observacao']) || ''),
-    linkOriginal: String(pick(['linkOriginal', 'url', 'itemUrl', 'productUrl']) || ''),
-    linkAfiliado: String(pick(['linkAfiliado', 'affiliateLink', 'trackingLink']) || ''),
+    linkOriginal: String(pick(['linkOriginal', 'url', 'itemUrl', 'productUrl', 'productLink', 'originalLink']) || ''),
+    linkAfiliado: String(pick(['linkAfiliado', 'affiliateLink', 'trackingLink', 'offerLink']) || ''),
     imagem: String(pick(['imagem', 'image', 'imageUrl']) || ''),
     status: 'PENDENTE',
     prioridade: 'MÉDIA',
@@ -788,7 +909,25 @@ function configPadrao_() {
       sendToAllActive: true
     },
     canais: [],
-    providers: []
+    providers: [
+      {
+        id: 'shopee',
+        nome: 'Shopee',
+        ativo: true,
+        tipo: 'shopee',
+        endpoint: 'https://open-api.affiliate.shopee.com.br/graphql',
+        method: 'POST',
+        authType: 'app_keys',
+        token: '',
+        tokenProperty: '',
+        appId: '',
+        appIdProperty: 'SHOPEE_APP_ID',
+        appSecret: '',
+        appSecretProperty: 'SHOPEE_SECRET',
+        headersJson: '{"Content-Type":"application/json"}',
+        queryOrBody: '{"query":"{ productOfferV2(sortType:2,page:1,limit:20){ nodes { productId itemId productName itemName shopName categoryName price priceMin priceMax originalPrice commissionRate imageUrl productLink offerLink ratingStar } pageInfo { page limit hasNextPage } } }"}'
+      }
+    ]
   };
 }
 
@@ -805,6 +944,7 @@ function normalizarConfig_(cfgRaw) {
 
   cfg.canais = Array.isArray(cfg.canais) ? cfg.canais : [];
   cfg.providers = Array.isArray(cfg.providers) ? cfg.providers : [];
+  if (!cfg.providers.length) cfg.providers = d.providers;
 
   if (!cfg.planilha.displayName) cfg.planilha.displayName = d.planilha.displayName;
   if (!cfg.theme.preset) cfg.theme.preset = d.theme.preset;
@@ -1018,6 +1158,34 @@ function resolveSecret_(directValue, propertyKey) {
   return String(PropertiesService.getScriptProperties().getProperty(key) || '').trim();
 }
 
+function mergeProviderHeaders_(headers, headersJsonRaw) {
+  var raw = String(headersJsonRaw || '').trim();
+  if (!raw) return;
+
+  try {
+    var extra = JSON.parse(raw);
+    var keys = Object.keys(extra);
+    for (var i = 0; i < keys.length; i++) {
+      headers[keys[i]] = extra[keys[i]];
+    }
+  } catch (_) {}
+}
+
+function sha256Hex_(text) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8);
+  var out = [];
+
+  for (var i = 0; i < bytes.length; i++) {
+    var v = bytes[i];
+    if (v < 0) v += 256;
+    var h = v.toString(16);
+    if (h.length === 1) h = '0' + h;
+    out.push(h);
+  }
+
+  return out.join('');
+}
+
 function logErro_(ctx, err) {
   try {
     var ss = getSpreadsheet_();
@@ -1037,10 +1205,45 @@ function setupExemploScriptProperties() {
   }
 
   var props = PropertiesService.getScriptProperties();
+  var active = SpreadsheetApp.getActiveSpreadsheet();
+  var spreadsheetId = active ? active.getId() : 'COLE_SEU_SPREADSHEET_ID';
   props.setProperties({
     RDG_SPREADSHEET_ID: spreadsheetId,
     TELEGRAM_BOT_TOKEN: 'COLE_SEU_TOKEN_TELEGRAM',
     WHATSAPP_TOKEN: 'COLE_SEU_TOKEN_WHATSAPP',
-    WHATSAPP_PHONE_NUMBER_ID: 'COLE_SEU_PHONE_NUMBER_ID'
+    WHATSAPP_PHONE_NUMBER_ID: 'COLE_SEU_PHONE_NUMBER_ID',
+    SHOPEE_APP_ID: 'COLE_SEU_SHOPEE_APP_ID',
+    SHOPEE_SECRET: 'COLE_SEU_SHOPEE_SECRET'
   }, false);
+}
+
+function setupShopeeProviderPadrao() {
+  var cfg = normalizarConfig_(getConfig_());
+  var shopeeDefault = configPadrao_().providers[0];
+  var providers = Array.isArray(cfg.providers) ? cfg.providers : [];
+  var foundIndex = -1;
+
+  for (var i = 0; i < providers.length; i++) {
+    if (String(providers[i].id || '').toLowerCase() === 'shopee') {
+      foundIndex = i;
+      break;
+    }
+  }
+
+  if (foundIndex < 0) {
+    providers.push(shopeeDefault);
+  } else {
+    var current = providers[foundIndex] || {};
+    var keys = Object.keys(shopeeDefault);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      if (current[key] === undefined || current[key] === null || String(current[key]).trim() === '') {
+        current[key] = shopeeDefault[key];
+      }
+    }
+    providers[foundIndex] = current;
+  }
+
+  cfg.providers = providers;
+  setConfig_(cfg);
 }

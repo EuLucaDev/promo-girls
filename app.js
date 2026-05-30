@@ -1,6 +1,7 @@
 (function () {
   var APP_CONFIG = window.RDG_CONFIG || {};
   var STORAGE_KEY = APP_CONFIG.storageKey || 'rdg_web_state_v2';
+  var BOOTSTRAP_CACHE_KEY = APP_CONFIG.bootstrapCacheKey || 'rdg_bootstrap_cache_v1';
   var DATA_MODE = APP_CONFIG.mode || 'api';
   var API_BASE_URL = APP_CONFIG.apiBaseUrl || 'http://localhost:8787';
   var ENABLE_LOCAL_FALLBACK = APP_CONFIG.enableLocalFallback !== false;
@@ -12,23 +13,17 @@
   };
 
   var THEME_PRESETS = {
-    amber: {
-      bg: '#f6f2e6',
-      panel: '#fffdf8',
-      brand: '#cd4d17',
-      ink: '#1f1e1a'
+    rose: {
+      bg: '#fff0f6',
+      panel: '#fff8fb',
+      brand: '#d63384',
+      ink: '#2b1d29'
     },
-    emerald: {
-      bg: '#edf7ef',
-      panel: '#f9fffb',
-      brand: '#1a8f56',
-      ink: '#163126'
-    },
-    ocean: {
-      bg: '#ecf4fa',
-      panel: '#f8fdff',
-      brand: '#0b6fad',
-      ink: '#0f2c3e'
+    purple: {
+      bg: '#f3efff',
+      panel: '#faf8ff',
+      brand: '#6f42c1',
+      ink: '#211a33'
     }
   };
 
@@ -114,6 +109,30 @@
     state.config = normalized.config;
     aplicarTema_(state.config.theme || {});
     atualizarTituloApp_();
+    persistBootstrapCache_();
+  }
+
+  function persistBootstrapCache_() {
+    try {
+      localStorage.setItem(BOOTSTRAP_CACHE_KEY, JSON.stringify({
+        ofertas: state.ofertas,
+        config: state.config,
+        savedAt: new Date().toISOString()
+      }));
+    } catch (_) {}
+  }
+
+  function hydrateBootstrapCache_() {
+    try {
+      var raw = localStorage.getItem(BOOTSTRAP_CACHE_KEY);
+      if (!raw) return false;
+      var payload = JSON.parse(raw);
+      if (!payload || (!payload.ofertas && !payload.config)) return false;
+      applyServerState_(payload);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   function applyResponseState_(result) {
@@ -146,16 +165,16 @@
 
   function aplicarTema_(theme) {
     theme = asObject_(theme, {});
-    var preset = String(theme.preset || 'amber');
+    var preset = String(theme.preset || 'rose');
     var colors = asObject_(theme.colors, {});
-    var base = THEME_PRESETS[preset] || THEME_PRESETS.amber;
+    var base = THEME_PRESETS[preset] || THEME_PRESETS.rose;
 
     if (preset === 'custom') {
       base = {
-        bg: colors.bg || THEME_PRESETS.amber.bg,
-        panel: colors.panel || THEME_PRESETS.amber.panel,
-        brand: colors.brand || THEME_PRESETS.amber.brand,
-        ink: colors.ink || THEME_PRESETS.amber.ink
+        bg: colors.bg || THEME_PRESETS.rose.bg,
+        panel: colors.panel || THEME_PRESETS.rose.panel,
+        brand: colors.brand || THEME_PRESETS.rose.brand,
+        ink: colors.ink || THEME_PRESETS.rose.ink
       };
     }
 
@@ -440,13 +459,13 @@
 
     byId('cfgSpreadsheetId').value = planilha.spreadsheetId || '';
     byId('cfgDisplayName').value = planilha.displayName || '';
-    byId('cfgThemePreset').value = theme.preset || 'amber';
+    byId('cfgThemePreset').value = theme.preset || 'rose';
     byId('cfgSendAllActive').value = cfg.publicacao && cfg.publicacao.sendToAllActive ? 'true' : 'false';
 
-    byId('cfgColorBg').value = colors.bg || '#f6f2e6';
-    byId('cfgColorPanel').value = colors.panel || '#fffdf8';
-    byId('cfgColorBrand').value = colors.brand || '#cd4d17';
-    byId('cfgColorInk').value = colors.ink || '#1f1e1a';
+    byId('cfgColorBg').value = colors.bg || '#fff0f6';
+    byId('cfgColorPanel').value = colors.panel || '#fff8fb';
+    byId('cfgColorBrand').value = colors.brand || '#d63384';
+    byId('cfgColorInk').value = colors.ink || '#2b1d29';
 
     byId('cfgPrecoMin').value = filtros.precoMin || '';
     byId('cfgPrecoMax').value = filtros.precoMax || '';
@@ -623,6 +642,16 @@
     }
   }
 
+  function renderTelaInicial_() {
+    renderStats();
+    renderConfig();
+    setActiveTab(state.activeTab || 'pendentes');
+  }
+
+  function unlockUi_() {
+    if (document.body) document.body.classList.remove('app-loading');
+  }
+
   function configPadrao_() {
     return {
       planilha: {
@@ -630,12 +659,12 @@
         displayName: 'Rei do Garimpo'
       },
       theme: {
-        preset: 'amber',
+        preset: 'rose',
         colors: {
-          bg: '#f6f2e6',
-          panel: '#fffdf8',
-          brand: '#cd4d17',
-          ink: '#1f1e1a'
+          bg: '#fff0f6',
+          panel: '#fff8fb',
+          brand: '#d63384',
+          ink: '#2b1d29'
         },
         sheetTheme: {
           pendentesBg: '#fff2cc',
@@ -675,8 +704,10 @@
       ],
       providers: [
         {
-          id: 'shopee', nome: 'Shopee', ativo: true, tipo: 'shopee', endpoint: '', method: 'POST',
-          authType: 'none', token: '', tokenProperty: '', appId: '', appIdProperty: '', appSecret: '', appSecretProperty: '', headersJson: '', queryOrBody: ''
+          id: 'shopee', nome: 'Shopee', ativo: true, tipo: 'shopee', endpoint: 'https://open-api.affiliate.shopee.com.br/graphql', method: 'POST',
+          authType: 'app_keys', token: '', tokenProperty: '', appId: '', appIdProperty: 'SHOPEE_APP_ID', appSecret: '', appSecretProperty: 'SHOPEE_SECRET',
+          headersJson: '{"Content-Type":"application/json"}',
+          queryOrBody: '{"query":"{ productOfferV2(sortType:2,page:1,limit:20){ nodes { productId itemId productName itemName shopName categoryName price priceMin priceMax originalPrice commissionRate imageUrl productLink offerLink ratingStar } pageInfo { page limit hasNextPage } } }"}'
         },
         {
           id: 'amazon', nome: 'Amazon', ativo: false, tipo: 'amazon', endpoint: '', method: 'GET',
@@ -703,6 +734,7 @@
 
     c.providers = asArray_(c.providers);
     c.canais = asArray_(c.canais);
+    if (!c.providers.length) c.providers = d.providers.slice();
 
     if (!Array.isArray(c.filtros.segmentos)) c.filtros.segmentos = [];
 
@@ -930,7 +962,7 @@
 
     byId('cfgThemePreset').addEventListener('change', function () {
       var preset = this.value;
-      var base = THEME_PRESETS[preset] || THEME_PRESETS.amber;
+      var base = THEME_PRESETS[preset] || THEME_PRESETS.rose;
       if (preset !== 'custom') {
         byId('cfgColorBg').value = base.bg;
         byId('cfgColorPanel').value = base.panel;
@@ -967,6 +999,9 @@
 
   var dataGateway = createDataGateway_();
 
+  hydrateBootstrapCache_();
   bindEvents();
+  renderTelaInicial_();
+  unlockUi_();
   refreshData();
 })();
