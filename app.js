@@ -442,6 +442,7 @@
       '<option value="amazon" ' + selected(provider.tipo, 'amazon') + '>amazon</option>' +
       '<option value="mercadolivre" ' + selected(provider.tipo, 'mercadolivre') + '>mercadolivre</option>' +
       '<option value="custom_json" ' + selected(provider.tipo, 'custom_json') + '>custom_json</option>' +
+      '<option value="mock" ' + selected(provider.tipo, 'mock') + '>mock</option>' +
       '<option value="manual" ' + selected(provider.tipo, 'manual') + '>manual</option>' +
       '</select></td>' +
       '<td><input type="text" class="p-input-lg" data-pfield="endpoint" value="' + val(provider.endpoint) + '" /></td>' +
@@ -736,6 +737,10 @@
         {
           id: 'custom_teste', nome: 'Custom Teste (DummyJSON)', ativo: false, tipo: 'custom_json', endpoint: 'https://dummyjson.com/products', method: 'GET',
           authType: 'none', token: '', tokenProperty: '', appId: '', appIdProperty: '', appSecret: '', appSecretProperty: '', headersJson: '', queryOrBody: '{"limit":20}'
+        },
+        {
+          id: 'mock_teste', nome: 'Mock Teste (Interno)', ativo: false, tipo: 'mock', endpoint: '', method: 'GET',
+          authType: 'none', token: '', tokenProperty: '', appId: '', appIdProperty: '', appSecret: '', appSecretProperty: '', headersJson: '', queryOrBody: '{"limit":10}'
         }
       ]
     };

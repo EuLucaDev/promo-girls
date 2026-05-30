@@ -494,11 +494,65 @@ function importFromProvider_(provider, filtros) {
   var tipo = String(provider.tipo || 'custom_json');
 
   if (tipo === 'manual') return [];
+  if (tipo === 'mock') return importMock_(provider, filtros);
   if (tipo === 'shopee') return importShopee_(provider, filtros);
   if (tipo === 'amazon') return importAmazon_(provider, filtros);
   if (tipo === 'mercadolivre') return importMercadoLivre_(provider, filtros);
 
   return importCustomJson_(provider, filtros);
+}
+
+function importMock_(provider, filtros) {
+  var amount = 10;
+  var bodyObj = null;
+  var base = String(provider.nome || provider.id || 'Mock');
+
+  if (provider.queryOrBody) {
+    try {
+      bodyObj = JSON.parse(provider.queryOrBody);
+      if (bodyObj && bodyObj.limit) {
+        amount = Number(bodyObj.limit) || amount;
+      }
+    } catch (_) {}
+  }
+
+  if (amount < 1) amount = 1;
+  if (amount > 50) amount = 50;
+
+  var now = new Date();
+  var out = [];
+
+  for (var i = 0; i < amount; i++) {
+    var price = (29 + i * 7).toFixed(2);
+    var oldPrice = (Number(price) + 15).toFixed(2);
+    out.push({
+      _uid: '',
+      id: 'MOCK-' + now.getTime() + '-' + i,
+      origemApi: base,
+      loja: 'Loja Demo',
+      produto: 'Oferta teste #' + (i + 1),
+      categoria: i % 2 === 0 ? 'Eletrônicos' : 'Casa',
+      precoDe: oldPrice,
+      precoPor: price,
+      cupom: i % 3 === 0 ? 'TESTE10' : '',
+      frete: 'Grátis',
+      avaliacao: (4.1 + ((i % 4) * 0.2)).toFixed(1),
+      beneficios: 'Oferta fictícia para validar fluxo',
+      observacao: 'Gerado automaticamente por provider mock',
+      linkOriginal: 'https://example.com/produto/' + (i + 1),
+      linkAfiliado: 'https://example.com/afiliado/' + (i + 1),
+      imagem: 'https://picsum.photos/seed/promo' + i + '/640/640',
+      status: 'PENDENTE',
+      prioridade: i % 3 === 0 ? 'ALTA' : 'MÉDIA',
+      postado: 'NÃO',
+      dataCaptura: now,
+      dataPostagem: '',
+      postTelegram: '',
+      aba: ABA_PENDENTES
+    });
+  }
+
+  return applyImportFilters_(out, filtros || {});
 }
 
 function importShopee_(provider, filtros) {
@@ -770,6 +824,9 @@ function applyImportFilters_(itens, filtros) {
   var min = toNumber_(filtros.precoMin);
   var max = toNumber_(filtros.precoMax);
   var kw = String(filtros.keywords || '').toLowerCase().trim();
+  var kws = kw
+    ? kw.split(',').map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; })
+    : [];
   var segs = Array.isArray(filtros.segmentos) ? filtros.segmentos : [];
   segs = segs.map(function (s) { return String(s || '').toLowerCase(); }).filter(function (s) { return s; });
 
@@ -779,7 +836,12 @@ function applyImportFilters_(itens, filtros) {
 
     if (isFinite(min) && (!isFinite(preco) || preco < min)) return false;
     if (isFinite(max) && (!isFinite(preco) || preco > max)) return false;
-    if (kw && texto.indexOf(kw) < 0) return false;
+    if (kws.length) {
+      var kwOk = kws.some(function (token) { return texto.indexOf(token) >= 0; });
+      if (!kwOk) return false;
+    } else if (kw && texto.indexOf(kw) < 0) {
+      return false;
+    }
 
     if (segs.length) {
       var ok = segs.some(function (s) { return texto.indexOf(s) >= 0; });
@@ -943,6 +1005,23 @@ function configPadrao_() {
         appSecretProperty: '',
         headersJson: '',
         queryOrBody: '{"limit":20}'
+      },
+      {
+        id: 'mock_teste',
+        nome: 'Mock Teste (Interno)',
+        ativo: false,
+        tipo: 'mock',
+        endpoint: '',
+        method: 'GET',
+        authType: 'none',
+        token: '',
+        tokenProperty: '',
+        appId: '',
+        appIdProperty: '',
+        appSecret: '',
+        appSecretProperty: '',
+        headersJson: '',
+        queryOrBody: '{"limit":10}'
       }
     ]
   };
@@ -1296,6 +1375,47 @@ function setupCustomProviderPadrao() {
       var key = keys[k];
       if (current[key] === undefined || current[key] === null || String(current[key]).trim() === '') {
         current[key] = customDefault[key];
+      }
+    }
+    providers[foundIndex] = current;
+  }
+
+  cfg.providers = providers;
+  setConfig_(cfg);
+}
+
+function setupMockProviderPadrao() {
+  var cfg = normalizarConfig_(getConfig_());
+  var defaults = configPadrao_().providers;
+  var mockDefault = null;
+  var providers = Array.isArray(cfg.providers) ? cfg.providers : [];
+  var foundIndex = -1;
+
+  for (var d = 0; d < defaults.length; d++) {
+    if (String(defaults[d].id || '').toLowerCase() === 'mock_teste') {
+      mockDefault = defaults[d];
+      break;
+    }
+  }
+
+  if (!mockDefault) return;
+
+  for (var i = 0; i < providers.length; i++) {
+    if (String(providers[i].id || '').toLowerCase() === 'mock_teste') {
+      foundIndex = i;
+      break;
+    }
+  }
+
+  if (foundIndex < 0) {
+    providers.push(mockDefault);
+  } else {
+    var current = providers[foundIndex] || {};
+    var keys = Object.keys(mockDefault);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      if (current[key] === undefined || current[key] === null || String(current[key]).trim() === '') {
+        current[key] = mockDefault[key];
       }
     }
     providers[foundIndex] = current;
