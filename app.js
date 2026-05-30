@@ -233,6 +233,8 @@
       cardStat('Reprovados', reprovados),
       cardStat('Postados', postados)
     ].join('');
+
+    revealStagger_(byId('stats').querySelectorAll('.stat'), 80);
   }
 
   function cardStat(label, value) {
@@ -273,6 +275,8 @@
     html += '</tbody></table>';
     wrap.innerHTML = html;
 
+    revealStagger_(wrap.querySelectorAll('tbody tr'), 36);
+
     var editButtons = wrap.querySelectorAll('[data-edit]');
     for (var e = 0; e < editButtons.length; e++) {
       editButtons[e].addEventListener('click', function () {
@@ -286,6 +290,19 @@
       deleteButtons[d].addEventListener('click', function () {
         excluirOferta(this.dataset.delete);
       });
+    }
+  }
+
+  function revealStagger_(nodeList, gapMs) {
+    var items = Array.prototype.slice.call(nodeList || []);
+    var gap = Number(gapMs || 60);
+    for (var i = 0; i < items.length; i++) {
+      (function (el, idx) {
+        el.classList.remove('is-visible');
+        setTimeout(function () {
+          el.classList.add('is-visible');
+        }, idx * gap);
+      })(items[i], i);
     }
   }
 
