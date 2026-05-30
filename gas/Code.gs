@@ -223,6 +223,13 @@ function importarProviders_() {
   var config = getConfig_();
   var providers = config.providers || [];
   var active = providers.filter(function (p) { return !!p.ativo; });
+  var filtros = config.filtros || {};
+  var filtrosResumo = [
+    'precoMin=' + String(filtros.precoMin || ''),
+    'precoMax=' + String(filtros.precoMax || ''),
+    'keywords=' + String(filtros.keywords || ''),
+    'segmentos=' + (Array.isArray(filtros.segmentos) ? filtros.segmentos.join(',') : '')
+  ].join(' | ');
 
   var all = listarTodasOfertasLista_(ss);
   var idMap = {};
@@ -232,16 +239,55 @@ function importarProviders_() {
   });
 
   var novos = [];
+  var totalRetornados = 0;
+
+  if (!active.length) {
+    addLog_(ss, 'IMPORT', 'Nenhum provedor ativo. Ative ao menos um provedor antes de importar.');
+  }
+
   for (var i = 0; i < active.length; i++) {
     var p = active[i];
-    var result = importFromProvider_(p, config.filtros || {});
+    var providerName = String(p.nome || p.id || ('provider_' + i));
+    var result = [];
+
+    try {
+      result = importFromProvider_(p, filtros);
+    } catch (err) {
+      addLog_(
+        ss,
+        'IMPORT_PROVIDER',
+        'Erro no provedor ' + providerName,
+        err && err.message ? err.message : String(err)
+      );
+      continue;
+    }
+
+    totalRetornados += result.length;
+    var novosProvider = 0;
+    var duplicadosProvider = 0;
+    var semIdProvider = 0;
+
     for (var j = 0; j < result.length; j++) {
       var o = result[j];
       var oid = String(o.id || '').trim();
-      if (!oid || idMap[oid]) continue;
+      if (!oid) {
+        semIdProvider += 1;
+        continue;
+      }
+      if (idMap[oid]) {
+        duplicadosProvider += 1;
+        continue;
+      }
       idMap[oid] = true;
       novos.push(o);
+      novosProvider += 1;
     }
+
+    addLog_(
+      ss,
+      'IMPORT_PROVIDER',
+      providerName + ' | retornados=' + result.length + ' | novos=' + novosProvider + ' | duplicados=' + duplicadosProvider + ' | sem_id=' + semIdProvider
+    );
   }
 
   if (novos.length) {
@@ -254,7 +300,12 @@ function importarProviders_() {
     pend.getRange(pend.getLastRow() + 1, 1, rows.length, TOTAL_COLUNAS).setValues(rows);
   }
 
-  addLog_(ss, 'IMPORT', 'Novos itens: ' + novos.length);
+  addLog_(
+    ss,
+    'IMPORT',
+    'Ativos=' + active.length + ' | retornados=' + totalRetornados + ' | novos=' + novos.length,
+    filtrosResumo
+  );
 
   return {
     ofertas: listarOfertas_(ss),
