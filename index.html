@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260530c" />
+    <link rel="stylesheet" href="styles.css?v=20260530d" />
   </head>
   <body class="app-loading">
     <div class="ambient-bg" aria-hidden="true">
@@ -35,6 +35,8 @@
         <button class="tab-btn active" data-tab="pendentes">Pendentes</button>
         <button class="tab-btn" data-tab="aprovados">Aprovados</button>
         <button class="tab-btn" data-tab="reprovados">Reprovados</button>
+        <button class="tab-btn" data-tab="insights">Insights</button>
+        <button class="tab-btn" data-tab="historico">Histórico</button>
         <button class="tab-btn" data-tab="config">Configurações</button>
       </aside>
 
@@ -65,6 +67,22 @@
           </div>
           <div class="stats" id="stats"></div>
           <div class="table-wrap" id="tableWrap"></div>
+        </div>
+      </section>
+
+      <section class="content hidden" id="viewInsights">
+        <div class="panel">
+          <h2>Insights</h2>
+          <div id="insightsWrap"></div>
+        </div>
+      </section>
+
+      <section class="content hidden" id="viewHistorico">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Histórico</h2>
+          </div>
+          <div id="historicoWrap"></div>
         </div>
       </section>
 
@@ -221,6 +239,16 @@
       </div>
     </div>
 
+    <div class="modal hidden" id="modalDetalhes">
+      <div class="modal-card">
+        <div class="panel-head">
+          <h3>Detalhes da Oferta</h3>
+          <button class="btn" id="btnFecharDetalhes">Fechar</button>
+        </div>
+        <div id="detalhesBody"></div>
+      </div>
+    </div>
+
     <div id="toast" class="toast hidden"></div>
 
     <script>
@@ -230,6 +258,6 @@
         enableLocalFallback: false
       };
     </script>
-    <script src="app.js?v=20260530c"></script>
+    <script src="app.js?v=20260530d"></script>
   </body>
 </html>

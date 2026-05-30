@@ -11,7 +11,9 @@
     dashboard: 'Dashboard',
     pendentes: 'Pendentes',
     aprovados: 'Aprovados',
-    reprovados: 'Reprovados'
+    reprovados: 'Reprovados',
+    insights: 'Insights',
+    historico: 'Histórico'
   };
 
   var THEME_PRESETS = {
@@ -40,7 +42,14 @@
   var state = {
     activeTab: 'pendentes',
     ofertas: { pendentes: [], aprovados: [], reprovados: [] },
-    config: configPadrao_()
+    config: configPadrao_(),
+    historyFilter: {
+      loja: 'todas',
+      status: 'todos',
+      data: '',
+      page: 1,
+      pageSize: 12
+    }
   };
 
   function byId(id) { return document.getElementById(id); }
@@ -69,6 +78,29 @@
     var d = new Date(value);
     if (isNaN(d.getTime())) return String(value);
     return d.toLocaleString('pt-BR');
+  }
+
+  function dateOnly_(value) {
+    if (!value) return '';
+    var d = new Date(value);
+    if (isNaN(d.getTime())) {
+      var raw = String(value);
+      return raw.length >= 10 ? raw.slice(0, 10) : '';
+    }
+    return d.toISOString().slice(0, 10);
+  }
+
+  function parseNumber_(value) {
+    if (value == null) return NaN;
+    var n = Number(String(value).replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, ''));
+    return isFinite(n) ? n : NaN;
+  }
+
+  function calcDescontoPct_(oferta) {
+    var de = parseNumber_(oferta && oferta.precoDe);
+    var por = parseNumber_(oferta && oferta.precoPor);
+    if (!isFinite(de) || !isFinite(por) || de <= 0 || por < 0 || por > de) return 0;
+    return Math.round(((de - por) / de) * 100);
   }
 
   function normalizarStatus_(status) {
@@ -261,13 +293,27 @@
 
     var isConfig = tab === 'config';
     var isDashboard = tab === 'dashboard';
+    var isInsights = tab === 'insights';
+    var isHistorico = tab === 'historico';
 
     byId('viewDashboard').classList.toggle('hidden', !isDashboard);
-    byId('viewOfertas').classList.toggle('hidden', isConfig || isDashboard);
+    byId('viewOfertas').classList.toggle('hidden', isConfig || isDashboard || isInsights || isHistorico);
+    byId('viewInsights').classList.toggle('hidden', !isInsights);
+    byId('viewHistorico').classList.toggle('hidden', !isHistorico);
     byId('viewConfig').classList.toggle('hidden', !isConfig);
 
     if (isDashboard) {
       renderDashboard();
+      return;
+    }
+
+    if (isInsights) {
+      renderInsights();
+      return;
+    }
+
+    if (isHistorico) {
+      renderHistorico();
       return;
     }
 
@@ -359,6 +405,216 @@
         '</div>';
       }).join('');
     }
+  }
+
+  function renderInsights() {
+    var wrap = byId('insightsWrap');
+    var allOffers = todasOfertas_();
+
+    if (!allOffers.length) {
+      wrap.innerHTML = '<div class="dashboard-card"><p class="muted-note">Sem dados para gerar insights.</p></div>';
+      return;
+    }
+
+    var lojaStats = {};
+    for (var i = 0; i < allOffers.length; i++) {
+      var o = allOffers[i];
+      var loja = String(o.loja || 'Sem loja');
+      if (!lojaStats[loja]) {
+        lojaStats[loja] = { total: 0, aprovados: 0, postados: 0, somaDesconto: 0 };
+      }
+      lojaStats[loja].total += 1;
+      if (normalizarStatus_(o.status) === 'APROVADO') lojaStats[loja].aprovados += 1;
+      if (String(o.postado || '').toUpperCase() === 'SIM') lojaStats[loja].postados += 1;
+      lojaStats[loja].somaDesconto += calcDescontoPct_(o);
+    }
+
+    var rows = Object.keys(lojaStats).map(function (loja) {
+      var s = lojaStats[loja];
+      var taxaAprov = s.total ? Math.round((s.aprovados / s.total) * 100) : 0;
+      var mediaDesc = s.total ? Math.round(s.somaDesconto / s.total) : 0;
+      return {
+        loja: loja,
+        total: s.total,
+        taxaAprov: taxaAprov,
+        mediaDesc: mediaDesc,
+        postados: s.postados
+      };
+    }).sort(function (a, b) { return b.total - a.total; });
+
+    var topDesc = allOffers.slice().sort(function (a, b) {
+      return calcDescontoPct_(b) - calcDescontoPct_(a);
+    }).slice(0, 8);
+
+    wrap.innerHTML =
+      '<div class="dashboard-grid">' +
+        '<div class="dashboard-card">' +
+          '<h3>Eficiência por Loja</h3>' +
+          '<div class="table-wrap">' +
+            '<table class="mini-table">' +
+              '<thead><tr><th>Loja</th><th>Itens</th><th>Aprovação</th><th>Desc. Médio</th><th>Postados</th></tr></thead>' +
+              '<tbody>' +
+                rows.map(function (r) {
+                  return '<tr>' +
+                    '<td>' + esc(r.loja) + '</td>' +
+                    '<td>' + r.total + '</td>' +
+                    '<td>' + r.taxaAprov + '%</td>' +
+                    '<td>' + r.mediaDesc + '%</td>' +
+                    '<td>' + r.postados + '</td>' +
+                  '</tr>';
+                }).join('') +
+              '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>' +
+        '<div class="dashboard-card">' +
+          '<h3>Radar de Ofertas Fortes</h3>' +
+          (topDesc.length ? topDesc.map(function (o) {
+            return '<div class="metric-row">' +
+              '<div class="metric-row-head"><strong>' + esc(o.produto || o.id || '-') + '</strong><span>' + calcDescontoPct_(o) + '%</span></div>' +
+              '<div class="metric-bar"><span style="width:' + Math.max(8, calcDescontoPct_(o)) + '%"></span></div>' +
+            '</div>';
+          }).join('') : '<p class="muted-note">Sem ofertas para ranking.</p>') +
+        '</div>' +
+      '</div>';
+  }
+
+  function renderHistorico() {
+    var wrap = byId('historicoWrap');
+    var all = todasOfertas_().slice();
+
+    all.sort(function (a, b) {
+      return new Date(b.dataCaptura || 0).getTime() - new Date(a.dataCaptura || 0).getTime();
+    });
+
+    var lojasSet = {};
+    for (var i = 0; i < all.length; i++) {
+      var loja = String(all[i].loja || 'Sem loja');
+      lojasSet[loja] = true;
+    }
+    var lojas = Object.keys(lojasSet).sort();
+
+    var filtered = all.filter(function (o) {
+      if (state.historyFilter.loja !== 'todas' && String(o.loja || 'Sem loja') !== state.historyFilter.loja) return false;
+      if (state.historyFilter.status !== 'todos' && normalizarStatus_(o.status) !== state.historyFilter.status) return false;
+      if (state.historyFilter.data && dateOnly_(o.dataCaptura) !== state.historyFilter.data) return false;
+      return true;
+    });
+
+    var pageSize = Number(state.historyFilter.pageSize || 12);
+    var totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if (state.historyFilter.page > totalPages) state.historyFilter.page = totalPages;
+    if (state.historyFilter.page < 1) state.historyFilter.page = 1;
+
+    var start = (state.historyFilter.page - 1) * pageSize;
+    var pageRows = filtered.slice(start, start + pageSize);
+
+    wrap.innerHTML =
+      '<div class="history-filters">' +
+        '<label>Loja<select id="histLoja"><option value="todas">Todas</option>' +
+          lojas.map(function (l) { return '<option value="' + esc(l) + '"' + (state.historyFilter.loja === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') +
+        '</select></label>' +
+        '<label>Status<select id="histStatus">' +
+          '<option value="todos"' + (state.historyFilter.status === 'todos' ? ' selected' : '') + '>Todos</option>' +
+          '<option value="PENDENTE"' + (state.historyFilter.status === 'PENDENTE' ? ' selected' : '') + '>PENDENTE</option>' +
+          '<option value="APROVADO"' + (state.historyFilter.status === 'APROVADO' ? ' selected' : '') + '>APROVADO</option>' +
+          '<option value="REPROVADO"' + (state.historyFilter.status === 'REPROVADO' ? ' selected' : '') + '>REPROVADO</option>' +
+        '</select></label>' +
+        '<label>Data<input id="histData" type="date" value="' + esc(state.historyFilter.data || '') + '" /></label>' +
+      '</div>' +
+      '<div class="table-wrap">' +
+        '<table class="mini-table">' +
+          '<thead><tr><th>ID</th><th>Produto</th><th>Loja</th><th>Status</th><th>Postado</th><th>Preço</th><th>Data</th><th>Ações</th></tr></thead>' +
+          '<tbody>' +
+            (pageRows.length ? pageRows.map(function (o) {
+              var uid = esc(o._uid || '');
+              return '<tr>' +
+                '<td>' + esc(o.id) + '</td>' +
+                '<td>' + esc(o.produto) + '</td>' +
+                '<td>' + esc(o.loja) + '</td>' +
+                '<td><span class="badge ' + badgeClass(o.status) + '">' + esc(normalizarStatus_(o.status)) + '</span></td>' +
+                '<td><span class="badge ' + badgePostadoClass_(o.postado) + '">' + esc(o.postado || 'NÃO') + '</span></td>' +
+                '<td>' + esc(o.precoPor || '-') + '</td>' +
+                '<td>' + esc(formatDate(o.dataCaptura)) + '</td>' +
+                '<td><button class="btn" data-hist-details="' + uid + '">Detalhes</button></td>' +
+              '</tr>';
+            }).join('') : '<tr><td colspan="8">Sem resultados para os filtros aplicados.</td></tr>') +
+          '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div class="history-pagination">' +
+        '<button class="btn" id="histPrev"' + (state.historyFilter.page <= 1 ? ' disabled' : '') + '>Anterior</button>' +
+        '<span>Página ' + state.historyFilter.page + ' de ' + totalPages + '</span>' +
+        '<button class="btn" id="histNext"' + (state.historyFilter.page >= totalPages ? ' disabled' : '') + '>Próxima</button>' +
+      '</div>';
+
+    byId('histLoja').addEventListener('change', function (e) {
+      state.historyFilter.loja = e.target.value;
+      state.historyFilter.page = 1;
+      renderHistorico();
+    });
+    byId('histStatus').addEventListener('change', function (e) {
+      state.historyFilter.status = e.target.value;
+      state.historyFilter.page = 1;
+      renderHistorico();
+    });
+    byId('histData').addEventListener('change', function (e) {
+      state.historyFilter.data = e.target.value;
+      state.historyFilter.page = 1;
+      renderHistorico();
+    });
+    byId('histPrev').addEventListener('click', function () {
+      if (state.historyFilter.page <= 1) return;
+      state.historyFilter.page -= 1;
+      renderHistorico();
+    });
+    byId('histNext').addEventListener('click', function () {
+      if (state.historyFilter.page >= totalPages) return;
+      state.historyFilter.page += 1;
+      renderHistorico();
+    });
+
+    var detailButtons = wrap.querySelectorAll('[data-hist-details]');
+    for (var k = 0; k < detailButtons.length; k++) {
+      detailButtons[k].addEventListener('click', function () {
+        abrirDetalhesOferta(this.dataset.histDetails);
+      });
+    }
+  }
+
+  function abrirDetalhesOferta(uid) {
+    var oferta = buscarOfertaPorUid_(uid);
+    if (!oferta) return;
+
+    var desconto = calcDescontoPct_(oferta);
+    byId('detalhesBody').innerHTML =
+      '<div class="details-grid">' +
+        '<div>' +
+          '<p><strong>ID:</strong> ' + esc(oferta.id || '-') + '</p>' +
+          '<p><strong>Produto:</strong> ' + esc(oferta.produto || '-') + '</p>' +
+          '<p><strong>Loja:</strong> ' + esc(oferta.loja || '-') + '</p>' +
+          '<p><strong>Categoria:</strong> ' + esc(oferta.categoria || '-') + '</p>' +
+          '<p><strong>Status:</strong> <span class="badge ' + badgeClass(oferta.status) + '">' + esc(normalizarStatus_(oferta.status)) + '</span></p>' +
+          '<p><strong>Postado:</strong> <span class="badge ' + badgePostadoClass_(oferta.postado) + '">' + esc(oferta.postado || 'NÃO') + '</span></p>' +
+          '<p><strong>Preço De:</strong> ' + esc(oferta.precoDe || '-') + '</p>' +
+          '<p><strong>Preço Por:</strong> ' + esc(oferta.precoPor || '-') + '</p>' +
+          '<p><strong>Desconto:</strong> ' + desconto + '%</p>' +
+          '<p><strong>Captura:</strong> ' + esc(formatDate(oferta.dataCaptura)) + '</p>' +
+        '</div>' +
+        '<div>' +
+          (oferta.imagem ? '<img class="details-image" src="' + esc(oferta.imagem) + '" alt="imagem oferta" />' : '<p class="muted-note">Sem imagem.</p>') +
+          '<div class="details-links">' +
+            (oferta.linkOriginal ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(oferta.linkOriginal) + '">Link Original</a>' : '') +
+            (oferta.linkAfiliado ? '<a class="btn btn-solid" target="_blank" rel="noopener" href="' + esc(oferta.linkAfiliado) + '">Link Afiliado</a>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    byId('modalDetalhes').classList.remove('hidden');
+  }
+
+  function fecharDetalhesOferta() {
+    byId('modalDetalhes').classList.add('hidden');
   }
 
   function renderTabela() {
@@ -767,6 +1023,8 @@
       renderStats();
       renderTabela();
       renderDashboard();
+      renderInsights();
+      renderHistorico();
       showToast(result.message || 'Configurações salvas.');
     } catch (err) {
       showToast('Erro ao salvar configurações: ' + err.message);
@@ -797,6 +1055,8 @@
       renderStats();
       renderTabela();
       renderDashboard();
+      renderInsights();
+      renderHistorico();
       showToast(result.message || 'Importação concluída.');
     } catch (err) {
       showToast('Falha na importação: ' + err.message);
@@ -810,6 +1070,8 @@
       renderStats();
       renderTabela();
       renderDashboard();
+      renderInsights();
+      renderHistorico();
       showToast(result.message || 'Publicação executada.');
     } catch (err) {
       showToast('Erro ao publicar aprovados: ' + err.message);
@@ -824,6 +1086,8 @@
       renderTabela();
       renderConfig();
       renderDashboard();
+      renderInsights();
+      renderHistorico();
       showToast('Dados atualizados.');
     } catch (err) {
       showToast('Erro ao atualizar dados: ' + err.message);
@@ -833,6 +1097,8 @@
   function renderTelaInicial_() {
     renderStats();
     renderDashboard();
+    renderInsights();
+    renderHistorico();
     renderConfig();
     setActiveTab(state.activeTab || 'pendentes');
   }
@@ -1145,6 +1411,7 @@
 
     byId('btnNovaOferta').addEventListener('click', function () { abrirModal(null); });
     byId('btnFecharModal').addEventListener('click', fecharModal);
+    byId('btnFecharDetalhes').addEventListener('click', fecharDetalhesOferta);
     byId('formOferta').addEventListener('submit', salvarOferta);
     byId('ofImagem').addEventListener('input', atualizarPreviewImagem);
 
