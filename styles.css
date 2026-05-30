@@ -1,10 +1,12 @@
 :root {
   --bg: #fff0f6;
+  --bg-soft: #ffd9ea;
   --panel: #fff8fb;
   --ink: #2b1d29;
-  --muted: #666457;
-  --line: #d9d0b8;
+  --muted: #7e5870;
+  --line: #e9bfd4;
   --brand: #d63384;
+  --table-head-bg: #ffe7f2;
   --ok: #2b9a60;
   --warn: #e3b221;
   --bad: #c84538;
@@ -14,7 +16,7 @@ body {
   margin: 0;
   font-family: "DM Sans", sans-serif;
   color: var(--ink);
-  background: radial-gradient(circle at 80% -10%, #ffe0ef 0%, var(--bg) 45%);
+  background: radial-gradient(circle at 80% -10%, var(--bg-soft) 0%, var(--bg) 45%);
 }
 body.app-loading .topbar,
 body.app-loading .layout,
@@ -134,7 +136,7 @@ h2,h3 { margin: 0 0 12px; text-transform: uppercase; letter-spacing: .05em; font
 }
 table { width: 100%; min-width: 1200px; border-collapse: collapse; background: #fff; }
 th, td { border-bottom: 1px solid #ece5cf; padding: 9px; text-align: left; font-size: .88rem; vertical-align: top; }
-th { background: #f6f1e2; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+th { background: var(--table-head-bg); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
 .badge { padding: 3px 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; }
 .badge.pendente { background: #ffe8a4; color: #5f4804; }
 .badge.aprovado { background: #c5ebd6; color: #124f31; }

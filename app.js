@@ -15,15 +15,23 @@
   var THEME_PRESETS = {
     rose: {
       bg: '#fff0f6',
+      bgSoft: '#ffd9ea',
       panel: '#fff8fb',
       brand: '#d63384',
-      ink: '#2b1d29'
+      ink: '#2b1d29',
+      line: '#e9bfd4',
+      muted: '#7e5870',
+      tableHeadBg: '#ffe7f2'
     },
     purple: {
       bg: '#f3efff',
+      bgSoft: '#e5dcff',
       panel: '#faf8ff',
       brand: '#6f42c1',
-      ink: '#211a33'
+      ink: '#211a33',
+      line: '#cdbef2',
+      muted: '#5c5378',
+      tableHeadBg: '#eee7ff'
     }
   };
 
@@ -172,17 +180,25 @@
     if (preset === 'custom') {
       base = {
         bg: colors.bg || THEME_PRESETS.rose.bg,
+        bgSoft: colors.bgSoft || THEME_PRESETS.rose.bgSoft,
         panel: colors.panel || THEME_PRESETS.rose.panel,
         brand: colors.brand || THEME_PRESETS.rose.brand,
-        ink: colors.ink || THEME_PRESETS.rose.ink
+        ink: colors.ink || THEME_PRESETS.rose.ink,
+        line: colors.line || THEME_PRESETS.rose.line,
+        muted: colors.muted || THEME_PRESETS.rose.muted,
+        tableHeadBg: colors.tableHeadBg || THEME_PRESETS.rose.tableHeadBg
       };
     }
 
     var root = document.documentElement;
     root.style.setProperty('--bg', base.bg);
+    root.style.setProperty('--bg-soft', base.bgSoft);
     root.style.setProperty('--panel', base.panel);
     root.style.setProperty('--brand', base.brand);
     root.style.setProperty('--ink', base.ink);
+    root.style.setProperty('--line', base.line);
+    root.style.setProperty('--muted', base.muted);
+    root.style.setProperty('--table-head-bg', base.tableHeadBg);
   }
 
   function setActiveTab(tab) {
@@ -979,6 +995,9 @@
           ink: byId('cfgColorInk').value
         }
       });
+
+      state.config.theme = state.config.theme || {};
+      state.config.theme.preset = preset;
     });
 
     ['cfgColorBg', 'cfgColorPanel', 'cfgColorBrand', 'cfgColorInk'].forEach(function (id) {
