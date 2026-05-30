@@ -732,6 +732,10 @@
         {
           id: 'mercado_livre', nome: 'Mercado Livre', ativo: false, tipo: 'mercadolivre', endpoint: '', method: 'GET',
           authType: 'bearer', token: '', tokenProperty: 'MERCADOLIVRE_TOKEN', appId: '', appIdProperty: '', appSecret: '', appSecretProperty: '', headersJson: '', queryOrBody: ''
+        },
+        {
+          id: 'custom_teste', nome: 'Custom Teste (DummyJSON)', ativo: false, tipo: 'custom_json', endpoint: 'https://dummyjson.com/products', method: 'GET',
+          authType: 'none', token: '', tokenProperty: '', appId: '', appIdProperty: '', appSecret: '', appSecretProperty: '', headersJson: '', queryOrBody: '{"limit":20}'
         }
       ]
     };

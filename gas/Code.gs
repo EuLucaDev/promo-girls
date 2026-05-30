@@ -755,7 +755,7 @@ function mapGenericItem_(item, providerName, index) {
     observacao: String(pick(['observacao']) || ''),
     linkOriginal: String(pick(['linkOriginal', 'url', 'itemUrl', 'productUrl', 'productLink', 'originalLink']) || ''),
     linkAfiliado: String(pick(['linkAfiliado', 'affiliateLink', 'trackingLink', 'offerLink']) || ''),
-    imagem: String(pick(['imagem', 'image', 'imageUrl']) || ''),
+    imagem: String(pick(['imagem', 'image', 'imageUrl', 'thumbnail', 'thumb']) || ''),
     status: 'PENDENTE',
     prioridade: 'MÉDIA',
     postado: 'NÃO',
@@ -926,6 +926,23 @@ function configPadrao_() {
         appSecretProperty: 'SHOPEE_SECRET',
         headersJson: '{"Content-Type":"application/json"}',
         queryOrBody: '{"query":"{ productOfferV2(sortType:2,page:1,limit:20){ nodes { productId itemId productName itemName shopName categoryName price priceMin priceMax originalPrice commissionRate imageUrl productLink offerLink ratingStar } pageInfo { page limit hasNextPage } } }"}'
+      },
+      {
+        id: 'custom_teste',
+        nome: 'Custom Teste (DummyJSON)',
+        ativo: false,
+        tipo: 'custom_json',
+        endpoint: 'https://dummyjson.com/products',
+        method: 'GET',
+        authType: 'none',
+        token: '',
+        tokenProperty: '',
+        appId: '',
+        appIdProperty: '',
+        appSecret: '',
+        appSecretProperty: '',
+        headersJson: '',
+        queryOrBody: '{"limit":20}'
       }
     ]
   };
@@ -1239,6 +1256,47 @@ function setupShopeeProviderPadrao() {
       var key = keys[k];
       if (current[key] === undefined || current[key] === null || String(current[key]).trim() === '') {
         current[key] = shopeeDefault[key];
+      }
+    }
+    providers[foundIndex] = current;
+  }
+
+  cfg.providers = providers;
+  setConfig_(cfg);
+}
+
+function setupCustomProviderPadrao() {
+  var cfg = normalizarConfig_(getConfig_());
+  var defaults = configPadrao_().providers;
+  var customDefault = null;
+  var providers = Array.isArray(cfg.providers) ? cfg.providers : [];
+  var foundIndex = -1;
+
+  for (var d = 0; d < defaults.length; d++) {
+    if (String(defaults[d].id || '').toLowerCase() === 'custom_teste') {
+      customDefault = defaults[d];
+      break;
+    }
+  }
+
+  if (!customDefault) return;
+
+  for (var i = 0; i < providers.length; i++) {
+    if (String(providers[i].id || '').toLowerCase() === 'custom_teste') {
+      foundIndex = i;
+      break;
+    }
+  }
+
+  if (foundIndex < 0) {
+    providers.push(customDefault);
+  } else {
+    var current = providers[foundIndex] || {};
+    var keys = Object.keys(customDefault);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      if (current[key] === undefined || current[key] === null || String(current[key]).trim() === '') {
+        current[key] = customDefault[key];
       }
     }
     providers[foundIndex] = current;
