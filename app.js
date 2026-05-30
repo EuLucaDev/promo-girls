@@ -2,11 +2,13 @@
   var APP_CONFIG = window.RDG_CONFIG || {};
   var STORAGE_KEY = APP_CONFIG.storageKey || 'rdg_web_state_v2';
   var BOOTSTRAP_CACHE_KEY = APP_CONFIG.bootstrapCacheKey || 'rdg_bootstrap_cache_v1';
+  var CLICK_METRICS_KEY = APP_CONFIG.clickMetricsKey || 'rdg_click_metrics_v1';
   var DATA_MODE = APP_CONFIG.mode || 'api';
   var API_BASE_URL = APP_CONFIG.apiBaseUrl || 'http://localhost:8787';
   var ENABLE_LOCAL_FALLBACK = APP_CONFIG.enableLocalFallback !== false;
 
   var TAB_LABEL = {
+    dashboard: 'Dashboard',
     pendentes: 'Pendentes',
     aprovados: 'Aprovados',
     reprovados: 'Reprovados'
@@ -90,6 +92,12 @@
     return 'pendente';
   }
 
+  function badgePostadoClass_(postado) {
+    return String(postado || '').trim().toUpperCase() === 'SIM'
+      ? 'postado-sim'
+      : 'postado-nao';
+  }
+
   function asArray_(value) {
     return Array.isArray(value) ? value : [];
   }
@@ -128,6 +136,48 @@
         savedAt: new Date().toISOString()
       }));
     } catch (_) {}
+  }
+
+  function readClickMetrics_() {
+    try {
+      var raw = localStorage.getItem(CLICK_METRICS_KEY);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      return asObject_(parsed, {});
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function writeClickMetrics_(data) {
+    try {
+      localStorage.setItem(CLICK_METRICS_KEY, JSON.stringify(asObject_(data, {})));
+    } catch (_) {}
+  }
+
+  function registerClick_(oferta, source) {
+    if (!oferta) return;
+    var key = String(oferta.id || oferta._uid || '');
+    if (!key) return;
+
+    var all = readClickMetrics_();
+    var current = asObject_(all[key], {
+      id: oferta.id || key,
+      produto: oferta.produto || 'Produto',
+      origemApi: oferta.origemApi || 'N/A',
+      count: 0,
+      lastClick: '',
+      source: source || 'link'
+    });
+
+    current.count = Number(current.count || 0) + 1;
+    current.lastClick = new Date().toISOString();
+    current.source = source || current.source || 'link';
+    current.produto = oferta.produto || current.produto;
+    current.origemApi = oferta.origemApi || current.origemApi;
+
+    all[key] = current;
+    writeClickMetrics_(all);
   }
 
   function hydrateBootstrapCache_() {
@@ -210,11 +260,19 @@
     }
 
     var isConfig = tab === 'config';
-    byId('viewOfertas').classList.toggle('hidden', isConfig);
+    var isDashboard = tab === 'dashboard';
+
+    byId('viewDashboard').classList.toggle('hidden', !isDashboard);
+    byId('viewOfertas').classList.toggle('hidden', isConfig || isDashboard);
     byId('viewConfig').classList.toggle('hidden', !isConfig);
 
+    if (isDashboard) {
+      renderDashboard();
+      return;
+    }
+
     if (!isConfig) {
-      byId('tituloAba').textContent = TAB_LABEL[tab] || 'Ofertas';
+      byId('tituloAba').textContent = TAB_LABEL[tab] || 'Pendentes';
       renderTabela();
     }
   }
@@ -241,6 +299,68 @@
     return '<article class="stat stat-' + esc(kind || '') + '"><strong>' + value + '</strong><small>' + label + '</small></article>';
   }
 
+  function renderDashboard() {
+    var allOffers = todasOfertas_();
+    var clickMap = readClickMetrics_();
+    var clickRows = Object.keys(clickMap).map(function (k) { return clickMap[k]; });
+    clickRows.sort(function (a, b) { return Number(b.count || 0) - Number(a.count || 0); });
+
+    var total = allOffers.length;
+    var aprovados = state.ofertas.aprovados.length;
+    var reprovados = state.ofertas.reprovados.length;
+    var postados = state.ofertas.aprovados.filter(function (o) {
+      return String(o.postado || '').toUpperCase() === 'SIM';
+    }).length;
+    var totalClicks = clickRows.reduce(function (sum, row) { return sum + Number(row.count || 0); }, 0);
+    var aprovacaoPct = total ? Math.round((aprovados / total) * 100) : 0;
+
+    byId('dashStats').innerHTML = [
+      cardStat('Total Ofertas', total, 'pendentes'),
+      cardStat('Aprovação (%)', aprovacaoPct + '%', 'aprovados'),
+      cardStat('Reprovadas', reprovados, 'reprovados'),
+      cardStat('Cliques', totalClicks, 'postados')
+    ].join('');
+    revealStagger_(byId('dashStats').querySelectorAll('.stat'), 80);
+
+    var topBox = byId('dashTopClicks');
+    if (!clickRows.length) {
+      topBox.innerHTML = '<p class="muted-note">Sem cliques registrados ainda.</p>';
+    } else {
+      var maxCount = Number(clickRows[0].count || 1);
+      topBox.innerHTML = clickRows.slice(0, 8).map(function (item) {
+        var widthPct = Math.max(8, Math.round((Number(item.count || 0) / maxCount) * 100));
+        return '<div class="metric-row">' +
+          '<div class="metric-row-head"><strong>' + esc(item.produto || item.id) + '</strong><span>' + Number(item.count || 0) + '</span></div>' +
+          '<div class="metric-bar"><span style="width:' + widthPct + '%"></span></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    var origemCount = {};
+    for (var i = 0; i < allOffers.length; i++) {
+      var origem = String(allOffers[i].origemApi || 'N/A');
+      origemCount[origem] = Number(origemCount[origem] || 0) + 1;
+    }
+
+    var origemRows = Object.keys(origemCount).map(function (origem) {
+      return { origem: origem, total: origemCount[origem] };
+    }).sort(function (a, b) { return b.total - a.total; });
+
+    var origemBox = byId('dashOrigens');
+    if (!origemRows.length) {
+      origemBox.innerHTML = '<p class="muted-note">Sem dados de origem ainda.</p>';
+    } else {
+      var maxOrigem = Number(origemRows[0].total || 1);
+      origemBox.innerHTML = origemRows.map(function (item) {
+        var widthPct = Math.max(8, Math.round((Number(item.total || 0) / maxOrigem) * 100));
+        return '<div class="metric-row">' +
+          '<div class="metric-row-head"><strong>' + esc(item.origem) + '</strong><span>' + Number(item.total || 0) + '</span></div>' +
+          '<div class="metric-bar metric-bar-alt"><span style="width:' + widthPct + '%"></span></div>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
   function renderTabela() {
     var rows = state.ofertas[state.activeTab] || [];
     var wrap = byId('tableWrap');
@@ -256,16 +376,24 @@
 
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
-      var img = r.imagem ? '<a href="' + esc(r.imagem) + '" target="_blank">ver</a>' : '-';
+      var productUrl = String(r.linkAfiliado || r.linkOriginal || '').trim();
+      var produto = esc(r.produto);
+      if (productUrl) {
+        produto = '<a href="' + esc(productUrl) + '" target="_blank" rel="noopener" data-track-click="' + esc(r._uid || '') + '">' + produto + '</a>';
+      }
+
+      var img = r.imagem
+        ? '<a href="' + esc(r.imagem) + '" target="_blank" rel="noopener" data-track-click-img="' + esc(r._uid || '') + '">ver</a>'
+        : '-';
 
       html += '<tr>' +
         '<td>' + esc(r.id) + '</td>' +
         '<td>' + esc(r.origemApi) + '</td>' +
-        '<td>' + esc(r.produto) + '</td>' +
+        '<td>' + produto + '</td>' +
         '<td>' + esc(r.categoria) + '</td>' +
         '<td>' + esc(r.precoPor) + '</td>' +
         '<td><span class="badge ' + badgeClass(r.status) + '">' + esc(r.status) + '</span></td>' +
-        '<td>' + esc(r.postado || '-') + '</td>' +
+        '<td><span class="badge ' + badgePostadoClass_(r.postado) + '">' + esc(r.postado || 'NÃO') + '</span></td>' +
         '<td>' + img + '</td>' +
         '<td>' + esc(formatDate(r.dataCaptura)) + '</td>' +
         '<td><button class="btn" data-edit="' + r._uid + '">Editar</button> <button class="btn" data-delete="' + r._uid + '">Excluir</button></td>' +
@@ -289,6 +417,20 @@
     for (var d = 0; d < deleteButtons.length; d++) {
       deleteButtons[d].addEventListener('click', function () {
         excluirOferta(this.dataset.delete);
+      });
+    }
+
+    var trackedProductLinks = wrap.querySelectorAll('[data-track-click]');
+    for (var t = 0; t < trackedProductLinks.length; t++) {
+      trackedProductLinks[t].addEventListener('click', function () {
+        registerClick_(buscarOfertaPorUid_(this.dataset.trackClick), 'produto');
+      });
+    }
+
+    var trackedImageLinks = wrap.querySelectorAll('[data-track-click-img]');
+    for (var ti = 0; ti < trackedImageLinks.length; ti++) {
+      trackedImageLinks[ti].addEventListener('click', function () {
+        registerClick_(buscarOfertaPorUid_(this.dataset.trackClickImg), 'imagem');
       });
     }
   }
@@ -431,15 +573,15 @@
 
     return '<tr data-channel-row="' + index + '">' +
       '<td><input type="checkbox" data-cfield="ativo" ' + (c.ativo ? 'checked' : '') + ' /></td>' +
-      '<td><input type="text" data-cfield="id" value="' + v(c.id) + '" /></td>' +
+      '<td><input type="text" class="c-input-sm" data-cfield="id" value="' + v(c.id) + '" /></td>' +
       '<td><select data-cfield="tipo">' +
       '<option value="telegram" ' + selected(c.tipo, 'telegram') + '>telegram</option>' +
       '<option value="whatsapp_oficial" ' + selected(c.tipo, 'whatsapp_oficial') + '>whatsapp_oficial</option>' +
       '<option value="whatsapp_grupo_manual" ' + selected(c.tipo, 'whatsapp_grupo_manual') + '>whatsapp_grupo_manual</option>' +
       '</select></td>' +
-      '<td><input type="text" data-cfield="nome" value="' + v(c.nome) + '" /></td>' +
-      '<td><input type="text" data-cfield="destino" value="' + v(c.destino) + '" /></td>' +
-      '<td><input type="text" data-cfield="configAuthJson" value="' + v(JSON.stringify(asObject_(c.configAuth, {}))) + '" placeholder="{\"token\":\"...\"}" /></td>' +
+      '<td><input type="text" class="c-input-md" data-cfield="nome" value="' + v(c.nome) + '" /></td>' +
+      '<td><input type="text" class="c-input-md" data-cfield="destino" value="' + v(c.destino) + '" /></td>' +
+      '<td><textarea class="c-input-json" data-cfield="configAuthJson" rows="2" placeholder="{\"token\":\"...\"}">' + v(JSON.stringify(asObject_(c.configAuth, {}))) + '</textarea></td>' +
       '<td><button class="btn" data-remove-channel="' + index + '">Remover</button></td>' +
       '</tr>';
   }
@@ -507,9 +649,13 @@
     byId('cfgSegmentos').value = (filtros.segmentos || []).join(',');
 
     var ctbody = byId('channelsTable').querySelector('tbody');
-    ctbody.innerHTML = (cfg.canais || []).map(function (c, i) {
+    var canais = cfg.canais || [];
+    ctbody.innerHTML = canais.map(function (c, i) {
       return channelRowHtml(c, i);
     }).join('');
+    if (!canais.length) {
+      ctbody.innerHTML = '<tr><td colspan="7"><div class="empty-row">Nenhum canal cadastrado.</div></td></tr>';
+    }
 
     var removeChannels = ctbody.querySelectorAll('[data-remove-channel]');
     for (var i = 0; i < removeChannels.length; i++) {
@@ -521,9 +667,13 @@
     }
 
     var ptbody = byId('providersTable').querySelector('tbody');
-    ptbody.innerHTML = (cfg.providers || []).map(function (p, i) {
+    var providers = cfg.providers || [];
+    ptbody.innerHTML = providers.map(function (p, i) {
       return providerRowHtml(p, i);
     }).join('');
+    if (!providers.length) {
+      ptbody.innerHTML = '<tr><td colspan="16"><div class="empty-row">Nenhum provedor cadastrado.</div></td></tr>';
+    }
 
     var removeProviders = ptbody.querySelectorAll('[data-remove-provider]');
     for (var j = 0; j < removeProviders.length; j++) {
@@ -616,6 +766,7 @@
       renderConfig();
       renderStats();
       renderTabela();
+      renderDashboard();
       showToast(result.message || 'Configurações salvas.');
     } catch (err) {
       showToast('Erro ao salvar configurações: ' + err.message);
@@ -645,6 +796,7 @@
       applyResponseState_(result);
       renderStats();
       renderTabela();
+      renderDashboard();
       showToast(result.message || 'Importação concluída.');
     } catch (err) {
       showToast('Falha na importação: ' + err.message);
@@ -657,6 +809,7 @@
       applyResponseState_(result);
       renderStats();
       renderTabela();
+      renderDashboard();
       showToast(result.message || 'Publicação executada.');
     } catch (err) {
       showToast('Erro ao publicar aprovados: ' + err.message);
@@ -670,6 +823,7 @@
       renderStats();
       renderTabela();
       renderConfig();
+      renderDashboard();
       showToast('Dados atualizados.');
     } catch (err) {
       showToast('Erro ao atualizar dados: ' + err.message);
@@ -678,6 +832,7 @@
 
   function renderTelaInicial_() {
     renderStats();
+    renderDashboard();
     renderConfig();
     setActiveTab(state.activeTab || 'pendentes');
   }
