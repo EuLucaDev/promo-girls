@@ -137,6 +137,27 @@ h2,h3 { margin: 0 0 12px; text-transform: uppercase; letter-spacing: .05em; font
 table { width: 100%; min-width: 1200px; border-collapse: collapse; background: #fff; }
 th, td { border-bottom: 1px solid #ece5cf; padding: 9px; text-align: left; font-size: .88rem; vertical-align: top; }
 th { background: var(--table-head-bg); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+
+#channelsTable { min-width: 980px; }
+#providersTable { min-width: 2200px; }
+#providersTable th,
+#providersTable td { vertical-align: middle; }
+#providersTable input,
+#providersTable select,
+#providersTable textarea {
+  font-size: .83rem;
+  padding: 8px 10px;
+}
+#providersTable textarea {
+  min-height: 64px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+#providersTable .p-input-sm { min-width: 72px; }
+#providersTable .p-input-md { min-width: 128px; }
+#providersTable .p-input-lg { min-width: 240px; }
+#providersTable .p-input-json { min-width: 240px; }
+#providersTable td:last-child .btn { white-space: nowrap; }
 .badge { padding: 3px 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; }
 .badge.pendente { background: #ffe8a4; color: #5f4804; }
 .badge.aprovado { background: #c5ebd6; color: #124f31; }

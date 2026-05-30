@@ -435,8 +435,8 @@
 
     return '<tr data-provider-row="' + index + '">' +
       '<td><input type="checkbox" data-pfield="ativo" ' + (provider.ativo ? 'checked' : '') + ' /></td>' +
-      '<td><input type="text" data-pfield="id" value="' + val(provider.id) + '" /></td>' +
-      '<td><input type="text" data-pfield="nome" value="' + val(provider.nome) + '" /></td>' +
+      '<td><input type="text" class="p-input-sm" data-pfield="id" value="' + val(provider.id) + '" /></td>' +
+      '<td><input type="text" class="p-input-md" data-pfield="nome" value="' + val(provider.nome) + '" /></td>' +
       '<td><select data-pfield="tipo">' +
       '<option value="shopee" ' + selected(provider.tipo, 'shopee') + '>shopee</option>' +
       '<option value="amazon" ' + selected(provider.tipo, 'amazon') + '>amazon</option>' +
@@ -444,7 +444,7 @@
       '<option value="custom_json" ' + selected(provider.tipo, 'custom_json') + '>custom_json</option>' +
       '<option value="manual" ' + selected(provider.tipo, 'manual') + '>manual</option>' +
       '</select></td>' +
-      '<td><input type="text" data-pfield="endpoint" value="' + val(provider.endpoint) + '" /></td>' +
+      '<td><input type="text" class="p-input-lg" data-pfield="endpoint" value="' + val(provider.endpoint) + '" /></td>' +
       '<td><select data-pfield="method">' +
       '<option value="GET" ' + selected(provider.method, 'GET') + '>GET</option>' +
       '<option value="POST" ' + selected(provider.method, 'POST') + '>POST</option>' +
@@ -454,14 +454,14 @@
       '<option value="bearer" ' + selected(provider.authType, 'bearer') + '>bearer</option>' +
       '<option value="app_keys" ' + selected(provider.authType, 'app_keys') + '>app_keys</option>' +
       '</select></td>' +
-      '<td><input type="password" data-pfield="token" value="' + val(provider.token) + '" /></td>' +
-      '<td><input type="text" data-pfield="tokenProperty" value="' + val(provider.tokenProperty) + '" placeholder="AMAZON_TOKEN" /></td>' +
-      '<td><input type="text" data-pfield="appId" value="' + val(provider.appId) + '" /></td>' +
-      '<td><input type="text" data-pfield="appIdProperty" value="' + val(provider.appIdProperty) + '" placeholder="AMAZON_APP_ID" /></td>' +
-      '<td><input type="password" data-pfield="appSecret" value="' + val(provider.appSecret) + '" /></td>' +
-      '<td><input type="text" data-pfield="appSecretProperty" value="' + val(provider.appSecretProperty) + '" placeholder="AMAZON_APP_SECRET" /></td>' +
-      '<td><input type="text" data-pfield="headersJson" value="' + val(provider.headersJson) + '" placeholder="{\"x-key\":\"abc\"}" /></td>' +
-      '<td><input type="text" data-pfield="queryOrBody" value="' + val(provider.queryOrBody) + '" placeholder="{\"keyword\":\"fone\"}" /></td>' +
+      '<td><input type="password" class="p-input-md" data-pfield="token" value="' + val(provider.token) + '" /></td>' +
+      '<td><input type="text" class="p-input-md" data-pfield="tokenProperty" value="' + val(provider.tokenProperty) + '" placeholder="AMAZON_TOKEN" /></td>' +
+      '<td><input type="text" class="p-input-sm" data-pfield="appId" value="' + val(provider.appId) + '" /></td>' +
+      '<td><input type="text" class="p-input-md" data-pfield="appIdProperty" value="' + val(provider.appIdProperty) + '" placeholder="AMAZON_APP_ID" /></td>' +
+      '<td><input type="password" class="p-input-sm" data-pfield="appSecret" value="' + val(provider.appSecret) + '" /></td>' +
+      '<td><input type="text" class="p-input-md" data-pfield="appSecretProperty" value="' + val(provider.appSecretProperty) + '" placeholder="AMAZON_APP_SECRET" /></td>' +
+      '<td><textarea class="p-input-json" data-pfield="headersJson" rows="2" placeholder="{\"x-key\":\"abc\"}">' + val(provider.headersJson) + '</textarea></td>' +
+      '<td><textarea class="p-input-json" data-pfield="queryOrBody" rows="2" placeholder="{\"keyword\":\"fone\"}">' + val(provider.queryOrBody) + '</textarea></td>' +
       '<td><button class="btn" data-remove-provider="' + index + '">Remover</button></td>' +
       '</tr>';
   }
