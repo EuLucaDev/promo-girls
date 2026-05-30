@@ -922,7 +922,9 @@ function applyImportFilters_(itens, filtros) {
 }
 
 function toNumber_(raw) {
-  var n = Number(String(raw || '').replace(/[^0-9,.-]/g, '').replace(',', '.'));
+  var s = String(raw == null ? '' : raw).trim();
+  if (!s) return NaN;
+  var n = Number(s.replace(/[^0-9,.-]/g, '').replace(',', '.'));
   return isFinite(n) ? n : NaN;
 }
 
