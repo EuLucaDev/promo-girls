@@ -754,7 +754,6 @@
 
     c.providers = asArray_(c.providers);
     c.canais = asArray_(c.canais);
-    if (!c.providers.length) c.providers = d.providers.slice();
 
     if (!Array.isArray(c.filtros.segmentos)) c.filtros.segmentos = [];
 

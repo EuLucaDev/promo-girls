@@ -961,7 +961,6 @@ function normalizarConfig_(cfgRaw) {
 
   cfg.canais = Array.isArray(cfg.canais) ? cfg.canais : [];
   cfg.providers = Array.isArray(cfg.providers) ? cfg.providers : [];
-  if (!cfg.providers.length) cfg.providers = d.providers;
 
   if (!cfg.planilha.displayName) cfg.planilha.displayName = d.planilha.displayName;
   if (!cfg.theme.preset) cfg.theme.preset = d.theme.preset;
