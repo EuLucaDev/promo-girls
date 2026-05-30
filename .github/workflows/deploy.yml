@@ -43,6 +43,7 @@ jobs:
     env:
       GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
       GAS_CLASP_JSON: ${{ secrets.GAS_CLASP_JSON }}
+      GAS_DEPLOYMENT_ID: ${{ secrets.GAS_DEPLOYMENT_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,4 +96,11 @@ jobs:
       - name: Deploy web app
         if: ${{ steps.precheck.outputs.ready == 'true' }}
         working-directory: gas
-        run: clasp deploy -d "CI deploy $GITHUB_SHA"
+        run: |
+          if [ -n "$GAS_DEPLOYMENT_ID" ]; then
+            echo "Redeploying existing web app deployment: $GAS_DEPLOYMENT_ID"
+            clasp deploy -i "$GAS_DEPLOYMENT_ID" -d "CI deploy $GITHUB_SHA"
+          else
+            echo "GAS_DEPLOYMENT_ID not set, creating a new deployment."
+            clasp deploy -d "CI deploy $GITHUB_SHA"
+          fi

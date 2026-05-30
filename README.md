@@ -9,6 +9,7 @@
 No GitHub, configure os secrets:
 - `GAS_CLASP_JSON`: conteúdo completo do arquivo `~/.clasprc.json`
 - `GAS_SCRIPT_ID`: Script ID do projeto Apps Script
+- `GAS_DEPLOYMENT_ID`: deployment ID do Web App (ex.: `AKfycbz...`) para redeploy no mesmo URL
 
 A cada push em `main`:
 1. Publica frontend no GitHub Pages.
