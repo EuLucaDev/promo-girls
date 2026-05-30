@@ -248,6 +248,10 @@ function importarProviders_() {
   for (var i = 0; i < active.length; i++) {
     var p = active[i];
     var providerName = String(p.nome || p.id || ('provider_' + i));
+    var providerTipoRaw = String(p.tipo || '');
+    var providerTipoNorm = normalizeProviderTipo_(providerTipoRaw);
+    var providerEndpoint = String(p.endpoint || '').trim();
+    var providerMethod = String(p.method || 'GET').toUpperCase();
     var result = [];
 
     try {
@@ -286,7 +290,7 @@ function importarProviders_() {
     addLog_(
       ss,
       'IMPORT_PROVIDER',
-      providerName + ' | retornados=' + result.length + ' | novos=' + novosProvider + ' | duplicados=' + duplicadosProvider + ' | sem_id=' + semIdProvider
+      providerName + ' | tipo_raw=' + providerTipoRaw + ' | tipo_norm=' + providerTipoNorm + ' | method=' + providerMethod + ' | endpoint=' + (providerEndpoint ? 'SET' : 'EMPTY') + ' | retornados=' + result.length + ' | novos=' + novosProvider + ' | duplicados=' + duplicadosProvider + ' | sem_id=' + semIdProvider
     );
   }
 
@@ -542,15 +546,26 @@ function montarMensagemOferta_(oferta) {
 }
 
 function importFromProvider_(provider, filtros) {
-  var tipo = String(provider.tipo || 'custom_json');
+  var tipo = normalizeProviderTipo_(provider.tipo || 'custom_json');
+  var endpoint = String(provider.endpoint || '').trim();
+  var providerHint = String(provider.id || provider.nome || '').toLowerCase();
 
   if (tipo === 'manual') return [];
+  if ((tipo === 'custom_json' || tipo === 'manual') && !endpoint && providerHint.indexOf('mock') >= 0) {
+    return importMock_(provider, filtros);
+  }
   if (tipo === 'mock') return importMock_(provider, filtros);
   if (tipo === 'shopee') return importShopee_(provider, filtros);
   if (tipo === 'amazon') return importAmazon_(provider, filtros);
   if (tipo === 'mercadolivre') return importMercadoLivre_(provider, filtros);
 
   return importCustomJson_(provider, filtros);
+}
+
+function normalizeProviderTipo_(raw) {
+  var s = String(raw || 'custom_json').toLowerCase().trim().replace(/\s+/g, '');
+  if (s === 'mercado_livre') return 'mercadolivre';
+  return s;
 }
 
 function importMock_(provider, filtros) {
